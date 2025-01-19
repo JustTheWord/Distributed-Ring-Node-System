@@ -1,0 +1,45 @@
+---
+- name: Provision distributed ring nodes
+  hosts: all
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+
+    - name: Install dependencies (Git, Go, Protobuf compiler, etc.)
+      apt:
+        name:
+          - git
+          - golang
+          - protobuf-compiler
+          - make
+          - build-essential
+        state: present
+
+    - name: Ensure /home/vagrant directory ownership
+      file:
+        path: /home/vagrant
+        owner: vagrant
+        group: vagrant
+        state: directory
+
+    - name: Clone the distributed ring repository
+      git:
+        repo: "https://github.com/JustTheWord/Distributed-Ring-Node-System"
+        dest: "/home/vagrant/distributed-ring"
+        version: "main"
+      become_user: vagrant
+
+    - name: Build the ringnode application
+      command: go build -o ringnode ./cmd/main.go
+      args:
+        chdir: "/home/vagrant/distributed-ring"
+      become_user: vagrant
+
+    - name: Create a symlink to the ringnode binary in /usr/local/bin
+      file:
+        src: "/home/vagrant/distributed-ring/ringnode"
+        dest: "/usr/local/bin/ringnode"
+        state: link
+      become: true

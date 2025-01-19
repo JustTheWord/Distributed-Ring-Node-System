@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package ringnode;
+
+message NeighborInfo {
+  string node_id = 1;
+  string ip = 2;
+  int32 port = 3;
+}
+
+message Ack {
+  bool success = 1;
+  string message = 2;
+}
+
+// For Chandy–Lamport
+message MarkerMessage {
+  string snapshot_id = 1;
+  string initiator_id = 2;
+}
+
+message RecordedState {
+  string node_id = 1;
+  string snapshot_id = 2;
+  string local_state = 3;
+  string channel_state = 4;
+}
+
+// For sending application data around
+message DataMessage {
+  string from_node_id = 1;
+  string snapshot_id = 2;
+  string payload = 3;
+}
+
+// For mutual exclusion
+message MutualExclusionRequest {
+  string node_id = 1;
+}
+
+message MutualExclusionResponse {
+  bool granted = 1;
+  string message = 2;
+}
+
+message MutualExclusionRelease {
+  string node_id = 1;
+}
+
+service RingNode {
+  // Ring membership
+  rpc InformSuccessor(NeighborInfo) returns (Ack);
+  rpc InformPredecessor(NeighborInfo) returns (Ack);
+
+  // Snapshot
+  rpc SendMarker(MarkerMessage) returns (Ack);
+  rpc SendRecordedState(RecordedState) returns (Ack);
+  rpc SendData(DataMessage) returns (Ack);
+
+  // Mutual Exclusion
+  rpc RequestAccess(MutualExclusionRequest) returns (MutualExclusionResponse);
+  rpc ReleaseAccess(MutualExclusionRelease) returns (Ack);
+}
