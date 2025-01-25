@@ -7,14 +7,35 @@
       apt:
         update_cache: true
 
-    - name: Install dependencies (Git, Go, Protobuf compiler, etc.)
+    - name: Install dependencies (Git, Protobuf compiler, etc.)
       apt:
         name:
           - git
-          - golang
           - protobuf-compiler
           - make
           - build-essential
+        state: present
+
+    - name: Download Go 1.23.5
+      get_url:
+        url: "https://go.dev/dl/go1.23.5.linux-amd64.tar.gz"
+        dest: "/tmp/go1.23.5.linux-amd64.tar.gz"
+
+    - name: Remove any existing Go installation
+      file:
+        path: /usr/local/go
+        state: absent
+
+    - name: Extract Go 1.23.5
+      unarchive:
+        src: "/tmp/go1.23.5.linux-amd64.tar.gz"
+        dest: "/usr/local"
+        remote_src: yes
+
+    - name: Ensure Go binary is in PATH
+      lineinfile:
+        path: /home/vagrant/.bashrc
+        line: "export PATH=$PATH:/usr/local/go/bin"
         state: present
 
     - name: Ensure /home/vagrant directory ownership
@@ -31,8 +52,15 @@
         version: "main"
       become_user: vagrant
 
+    - name: Fix go.mod file to use Go 1.23
+      lineinfile:
+        path: "/home/vagrant/distributed-ring/go.mod"
+        regexp: "^go "
+        line: "go 1.23"
+      become_user: vagrant
+
     - name: Build the ringnode application
-      command: go build -o ringnode ./cmd/main.go
+      command: /usr/local/go/bin/go build -o ringnode ./cmd/main.go
       args:
         chdir: "/home/vagrant/distributed-ring"
       become_user: vagrant

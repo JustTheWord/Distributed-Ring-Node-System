@@ -18,6 +18,7 @@ A distributed system implementing a ring topology with gRPC communication, mutua
   - [Starting Nodes](#starting-nodes)
   - [Interacting via REST API](#interacting-via-rest-api)
 - [Logging](#logging)
+- [Vagrant and Ansible Automated Setup](vagrant-and-ansible-automated-setup)
 
 ## Introduction
 
@@ -234,3 +235,95 @@ Example Log Entry:
 2025-01-17T22:48:16+01:00 [3] [node1] KillHandler: Node killed
 2025-01-17T22:48:49+01:00 [4] [node1] ReviveHandler: Node revived
 ```
+
+## Vagrant & Ansible Automated Setup
+
+If you want to spin up multiple virtual machines (nodes) and have them automatically provisioned with all necessary dependencies (Go, protoc, etc.), you can use the provided **Vagrantfile** and **Ansible** playbook in this repository.
+
+### How It Works
+
+- **Vagrantfile**  
+  Creates 5 Ubuntu (Jammy64) VMs named `node1` through `node5`, each with:
+
+  - A private network IP (e.g., `node1` → `192.168.56.110`, `node2` → `192.168.56.120`, etc.).
+  - A forwarded SSH port (e.g., `node1` → Host port `2221`, `node2` → `2222`, etc.).
+  - 512MB of RAM and 1 CPU each.
+
+- **Ansible Playbook (`ansible/playbook.yml`)**  
+  Runs on each VM after provisioning to:
+  1. Install dependencies (Git, protobuf-compiler, build tools).
+  2. Download and install Go **1.23.5**.
+  3. Clone this GitHub repository (no credentials needed).
+  4. Build the `ringnode` binary and symlink it to `/usr/local/bin/ringnode`.
+
+After provisioning completes, each VM will have the `ringnode` binary ready to run. You can SSH into any node (`node1`..`node5`) via `vagrant ssh nodeX`.
+
+### Steps to Use
+
+1. **Clone this repository** (or download it) into a local folder:
+
+   ```bash
+   git clone https://github.com/JustTheWord/Distributed-Ring-Node-System.git
+   cd Distributed-Ring-Node-System
+   ```
+
+2. **Navigate to the Vagrant folder** (assuming the Vagrantfile is at the root or adjust the path accordingly):
+
+   ```bash
+   cd provisioning/
+   ```
+
+3. **Spin up all nodes**:
+
+   ```bash
+   vagrant up
+   ```
+
+   Vagrant will create 5 VMs (node1..node5), then Ansible will run automatically to install Go, build the project, etc.
+
+4. **SSH into a node (example for node1)**:
+
+   ```bash
+   vagrant ssh node1
+   ```
+
+   You now have a shell inside node1 with the ringnode binary at your disposal.
+
+   Alternatively, you can SSH with a client on your host using:
+
+   ```bash
+   ssh vagrant@127.0.0.1 -p 2221
+   ```
+
+5. **Run the `ringnode` application inside the VM**:
+
+   ```bash
+   ringnode node1 192.168.56.110 5001 true 8080
+   ```
+
+   Adjust flags/arguments as needed (e.g., true if it’s your coordinator node).
+
+6. **Test your REST/gRPC interactions**:
+
+   - Each node’s gRPC port can be set as needed (e.g., 5001 for node1).
+   - Each node’s REST API port can also be set (e.g., 8080 for node1).
+   - Use curl or Postman from your host machine to hit node1 at 192.168.56.110:8080 or whichever IP/port combination you have specified.
+
+### Ansible Inventory
+
+In case you need to run the Ansible playbook again or modify it, the inventory is located at `ansible/inventory`:
+
+```bash
+[nodes]
+node1 ansible_host=127.0.0.1 ansible_port=2221 ansible_user=vagrant
+node2 ansible_host=127.0.0.1 ansible_port=2222 ansible_user=vagrant
+node3 ansible_host=127.0.0.1 ansible_port=2223 ansible_user=vagrant
+node4 ansible_host=127.0.0.1 ansible_port=2224 ansible_user=vagrant
+node5 ansible_host=127.0.0.1 ansible_port=2225 ansible_user=vagrant
+```
+
+## **Note:**
+
+By default, Vagrant calls Ansible automatically with this `inventory` and runs `playbook.yml` for each node.
+
+---

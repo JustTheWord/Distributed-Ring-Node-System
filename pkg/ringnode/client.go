@@ -8,7 +8,20 @@ import (
 	"google.golang.org/grpc"
 )
 
-// InformSuccessor sends the InformSuccessor RPC to the specified node address.
+// NewRingNodeClientGRPC is a helper to connect to a ringnode server and return the client + conn.
+func NewRingNodeClientGRPC(targetAddr string) (RingNodeClient, *grpc.ClientConn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, targetAddr, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to connect to %s: %v", targetAddr, err)
+	}
+	client := NewRingNodeClient(conn)
+	return client, conn, nil
+}
+
+// InformSuccessor ...
 func InformSuccessor(nodeAddr string, info *NeighborInfo) (*Ack, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -20,18 +33,10 @@ func InformSuccessor(nodeAddr string, info *NeighborInfo) (*Ack, error) {
 	defer conn.Close()
 
 	client := NewRingNodeClient(conn)
-
-	rpcCtx, rpcCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer rpcCancel()
-
-	ack, err := client.InformSuccessor(rpcCtx, info)
-	if err != nil {
-		return nil, fmt.Errorf("InformSuccessor RPC failed: %v", err)
-	}
-	return ack, nil
+	return client.InformSuccessor(ctx, info)
 }
 
-// InformPredecessor sends the InformPredecessor RPC to the specified node address.
+// InformPredecessor ...
 func InformPredecessor(nodeAddr string, info *NeighborInfo) (*Ack, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -43,18 +48,10 @@ func InformPredecessor(nodeAddr string, info *NeighborInfo) (*Ack, error) {
 	defer conn.Close()
 
 	client := NewRingNodeClient(conn)
-
-	rpcCtx, rpcCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer rpcCancel()
-
-	ack, err := client.InformPredecessor(rpcCtx, info)
-	if err != nil {
-		return nil, fmt.Errorf("InformPredecessor RPC failed: %v", err)
-	}
-	return ack, nil
+	return client.InformPredecessor(ctx, info)
 }
 
-// SendMarkerRPC is a convenience function for calling the SendMarker gRPC.
+// SendMarkerRPC ...
 func SendMarkerRPC(nodeAddr string, marker *MarkerMessage) (*Ack, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -66,18 +63,10 @@ func SendMarkerRPC(nodeAddr string, marker *MarkerMessage) (*Ack, error) {
 	defer conn.Close()
 
 	client := NewRingNodeClient(conn)
-
-	rpcCtx, rpcCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer rpcCancel()
-
-	ack, err := client.SendMarker(rpcCtx, marker)
-	if err != nil {
-		return nil, fmt.Errorf("SendMarker RPC failed: %v", err)
-	}
-	return ack, nil
+	return client.SendMarker(ctx, marker)
 }
 
-// SendRecordedStateRPC sends the local recorded state to the aggregator.
+// SendRecordedStateRPC ...
 func SendRecordedStateRPC(nodeAddr string, rec *RecordedState) (*Ack, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -89,9 +78,5 @@ func SendRecordedStateRPC(nodeAddr string, rec *RecordedState) (*Ack, error) {
 	defer conn.Close()
 
 	client := NewRingNodeClient(conn)
-
-	rpcCtx, rpcCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer rpcCancel()
-
-	return client.SendRecordedState(rpcCtx, rec)
+	return client.SendRecordedState(ctx, rec)
 }
